@@ -32,9 +32,35 @@ class App extends Component {
         super();
         this.state = {
             input: "",
-            imageUrl: ""
+            imageUrl: "",
+            boxes: []
         };
     }
+
+    calculateFaceLocation = data => {
+        const faceRegions = data.outputs[0].data.regions;
+        const image = document.getElementById("inputimage");
+        const width = Number(image.width);
+        const height = Number(image.height);
+        let boxesArr = [];
+
+        faceRegions.forEach(el => {
+            let box = {};
+            el = el.region_info.bounding_box;
+            box.leftCol = el.left_col * width;
+            box.rightCol = width - el.right_col * width;
+            box.topRow = el.top_row * height;
+            box.bottomRow = height - el.bottom_row * height;
+            boxesArr.push(box);
+        });
+        return boxesArr;
+    };
+
+    displayFaceBox = boxes => {
+        this.setState({
+            boxes: boxes
+        });
+    };
 
     onInputChange = e => {
         this.setState({
@@ -44,14 +70,14 @@ class App extends Component {
 
     onSubmit = () => {
         this.setState({ imageUrl: this.state.input });
-        app.models.predict(Clarifai.FACE_DETECT_MODEL, this.state.input).then(
-            function(response) {
-                console.log(response);
-            },
-            function(err) {
-                // there was an error
-            }
-        );
+        app.models
+            .predict(Clarifai.FACE_DETECT_MODEL, this.state.input)
+            .then(response => {
+                this.displayFaceBox(this.calculateFaceLocation(response));
+            })
+            .catch(err => {
+                console.log(err);
+            });
     };
 
     render() {
@@ -65,7 +91,10 @@ class App extends Component {
                     onInputChange={this.onInputChange}
                     onSubmit={this.onSubmit}
                 />
-                <FaceRecognition imageUrl={this.state.imageUrl} />
+                <FaceRecognition
+                    boxes={this.state.boxes}
+                    imageUrl={this.state.imageUrl}
+                />
             </div>
         );
     }
