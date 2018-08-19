@@ -29,16 +29,25 @@ const particlesOptions = {
     }
 };
 
+const initialState = {
+    input: "",
+    imageUrl: "",
+    boxes: [],
+    route: "signin",
+    isSignedIn: false,
+    user: {
+        id: "",
+        name: "",
+        email: "",
+        entries: 0,
+        joined: ""
+    }
+};
+
 class App extends Component {
     constructor() {
         super();
-        this.state = {
-            input: "",
-            imageUrl: "",
-            boxes: [],
-            route: "signin",
-            isSignedIn: false
-        };
+        this.state = initialState;
     }
 
     calculateFaceLocation = data => {
@@ -77,6 +86,23 @@ class App extends Component {
         app.models
             .predict(Clarifai.FACE_DETECT_MODEL, this.state.input)
             .then(response => {
+                if (response) {
+                    fetch("http://localhost:3000/image", {
+                        method: "put",
+                        headers: { "Content-type": "application/json" },
+                        body: JSON.stringify({
+                            id: this.state.user.id
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(count => {
+                            this.setState(
+                                Object.assign(this.state.user, {
+                                    entries: count
+                                })
+                            );
+                        });
+                }
                 this.displayFaceBox(this.calculateFaceLocation(response));
             })
             .catch(err => {
@@ -86,12 +112,26 @@ class App extends Component {
 
     onRouteChange = route => {
         if (route === "signout") {
-            this.setState({ isSignedIn: false });
+            this.setState(initialState);
         } else if (route === "home") {
             this.setState({ isSignedIn: true });
         }
         this.setState({ route: route });
     };
+
+    loadUser = userData => {
+        this.setState({
+            user: {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                entries: userData.entries,
+                joined: userData.joined
+            }
+        });
+    };
+
+    componentDidMount() {}
 
     render() {
         const { imageUrl, boxes, route, isSignedIn } = this.state;
@@ -105,7 +145,10 @@ class App extends Component {
                 {route === "home" ? (
                     <div>
                         <Logo />
-                        <Rank />
+                        <Rank
+                            name={this.state.user.name}
+                            entries={this.state.user.entries}
+                        />
                         <ImageLinkForm
                             onInputChange={this.onInputChange}
                             onSubmit={this.onSubmit}
@@ -113,9 +156,15 @@ class App extends Component {
                         <FaceRecognition boxes={boxes} imageUrl={imageUrl} />
                     </div>
                 ) : this.state.route === "signin" ? (
-                    <SignIn onRouteChange={this.onRouteChange} />
+                    <SignIn
+                        onRouteChange={this.onRouteChange}
+                        loadUser={this.loadUser}
+                    />
                 ) : (
-                    <Register onRouteChange={this.onRouteChange} />
+                    <Register
+                        onRouteChange={this.onRouteChange}
+                        loadUser={this.loadUser}
+                    />
                 )}
             </div>
         );
