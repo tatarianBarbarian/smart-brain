@@ -6,3 +6,5 @@ Dev:
   
 Build:
   * yarn build
+
+Live: https://sm-brain.herokuapp.com/
